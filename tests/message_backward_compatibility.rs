@@ -2,7 +2,9 @@ use serde_cbor::de::from_slice;
 use serde_cbor::ser::to_vec;
 use serde_derive::{Deserialize, Serialize};
 
-use pueue_lib::network::message::Message as OriginalMessage;
+use pueue_lib::network::message::{
+    GroupMessage as OriginalGroupMessage, Message as OriginalMessage,
+};
 
 /// This is the main message enum. \
 /// Everything that's communicated in Pueue can be serialized as this enum.
@@ -10,6 +12,7 @@ use pueue_lib::network::message::Message as OriginalMessage;
 pub enum Message {
     Switch(SwitchMessage),
     Clean(CleanMessage),
+    Group(GroupMessage),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -21,6 +24,13 @@ pub struct SwitchMessage {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CleanMessage {}
+
+#[derive(PartialEq, Clone, Debug, Deserialize, Serialize)]
+pub enum GroupMessage {
+    Add(String),
+    Remove(String),
+    List { something: String },
+}
 
 #[test]
 /// Make sure we can deserialize old messages as long as we have default values set.
@@ -51,4 +61,16 @@ fn test_deserialize_new_message() {
     let message: OriginalMessage = from_slice(&payload_bytes).unwrap();
     // The serialized message did have an additional field. The deserialization works anyway.
     assert!(matches!(message, OriginalMessage::Switch(_)));
+}
+
+#[test]
+/// Make sure we can deserialize enums, if they changed from a simple variant to a complex
+/// struct-like variant.
+fn test_deserialize_changed_enum_variant() {
+    let message = OriginalMessage::Group(OriginalGroupMessage::List);
+    let payload_bytes = to_vec(&message).unwrap();
+
+    let message: Message = from_slice(&payload_bytes).unwrap();
+    // The serialized message did have an additional field. The deserialization works anyway.
+    assert!(matches!(message, Message::Group(_)));
 }
