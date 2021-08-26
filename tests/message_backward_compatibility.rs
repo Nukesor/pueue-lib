@@ -9,6 +9,7 @@ use pueue_lib::network::message::{
 /// This is the main message enum. \
 /// Everything that's communicated in Pueue can be serialized as this enum.
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(from="OriginalMessage")]
 pub enum Message {
     Switch(SwitchMessage),
     Clean(CleanMessage),
@@ -25,9 +26,6 @@ impl From<OriginalMessage> for Message {
         }
     }
 }
-
-
-
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SwitchMessage {
@@ -120,7 +118,7 @@ fn test_deserialize_changed_enum_variant() {
     let message = OriginalMessage::Group(OriginalGroupMessage::List);
     let payload_bytes = to_vec(&message).unwrap();
 
-    let message : Message = from_slice::<OriginalMessage>(&payload_bytes).unwrap().into();
+    let message : Message = from_slice(&payload_bytes).unwrap();
     // The serialized message did have an additional field. The deserialization works anyway.
     assert!(matches!(message, Message::Group(_)));
 }
