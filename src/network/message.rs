@@ -4,7 +4,7 @@ use chrono::prelude::*;
 use serde_derive::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 
-use crate::state::{GroupStatus, State};
+use crate::state::{GroupInfo, State};
 use crate::task::Task;
 
 /// This is the main message enum. \
@@ -168,15 +168,14 @@ pub struct EditResponseMessage {
 
 #[derive(PartialEq, Clone, Debug, Deserialize, Serialize)]
 pub enum GroupMessage {
-    Add(String),
+    Add(String, usize),
     Remove(String),
     List,
 }
 
 #[derive(PartialEq, Clone, Debug, Deserialize, Serialize)]
 pub struct GroupResponseMessage {
-    pub groups: BTreeMap<String, GroupStatus>,
-    pub settings: BTreeMap<String, usize>,
+    pub groups: BTreeMap<String, GroupInfo>,
 }
 
 #[derive(PartialEq, Clone, Debug, Deserialize, Serialize)]

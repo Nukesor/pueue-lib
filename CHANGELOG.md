@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - Remove the `settings.daemon.default_parallel_tasks` setting, as it doesn't have any effect.
 
+### Deprecated
+
+- Deprecate the `settings.daemon.groups` setting.
+
 ## [0.18.1] - 2021-09-15
 
 ### Added

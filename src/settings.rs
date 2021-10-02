@@ -4,7 +4,7 @@ use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
 use config::Config;
-use log::info;
+use log::{error, info};
 use serde_derive::{Deserialize, Serialize};
 use shellexpand::tilde;
 
@@ -93,7 +93,7 @@ pub struct Daemon {
     pub callback_log_lines: usize,
     /// This shouldn't be manipulated manually if the daemon is running.
     /// This represents all known groups and their amount of parallel tasks.
-    pub groups: BTreeMap<String, usize>,
+    pub groups: Option<BTreeMap<String, usize>>,
 }
 
 /// The parent settings struct. \
@@ -135,12 +135,7 @@ impl Settings {
     /// If no config files can be found or fields are missing, an error is returned.
     pub fn read(from_file: &Option<PathBuf>) -> Result<Settings, Error> {
         let config = Config::new();
-
-        // Insert the default group, if it doesn't exist.
-        let mut settings = parse_config(config, true, from_file)?;
-        settings.ensure_default_group();
-
-        Ok(settings)
+        parse_config(config, true, from_file)
     }
 
     /// Try to read existing config files and
@@ -159,11 +154,7 @@ impl Settings {
         from_file: &Option<PathBuf>,
     ) -> Result<Settings, Error> {
         let config = Settings::default_config()?;
-
-        let mut settings = parse_config(config, require_config, from_file)?;
-        settings.ensure_default_group();
-
-        Ok(settings)
+        parse_config(config, require_config, from_file)
     }
 
     pub fn default_config() -> Result<Config, Error> {
@@ -241,7 +232,7 @@ impl Settings {
             .unwrap();
         config.set_default("daemon.callback_log_lines", 10).unwrap();
         config
-            .set_default("daemon.groups", HashMap::<String, i64>::new())
+            .set_default("daemon.groups", None::<HashMap<String, i64>>)
             .unwrap();
 
         Ok(config)
@@ -278,15 +269,6 @@ impl Settings {
         file.write_all(content.as_bytes())?;
 
         Ok(())
-    }
-
-    pub fn ensure_default_group(&mut self) {
-        // Insert the default group, if it doesn't exist.
-        if self.daemon.groups.get(PUEUE_DEFAULT_GROUP).is_none() {
-            self.daemon
-                .groups
-                .insert(PUEUE_DEFAULT_GROUP.to_string(), 1);
-        }
     }
 }
 
@@ -335,6 +317,12 @@ fn parse_config(
         ));
     }
 
+    let settings = config.try_into::<Settings>()?;
+
+    if settings.daemon.groups.is_some() {
+        error!("The `daemon.groups` setting is deprecated.");
+    }
+
     // Try to can deserialize the entire configuration
-    Ok(config.try_into()?)
+    Ok(settings)
 }

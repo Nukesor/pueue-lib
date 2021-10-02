@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 use serde_derive::{Deserialize, Serialize};
 
 use crate::error::Error;
+use crate::network::message::{create_failure_message, Message};
 use crate::settings::{Settings, PUEUE_DEFAULT_GROUP};
 use crate::task::{Task, TaskStatus};
 
@@ -16,6 +17,27 @@ pub type SharedState = Arc<Mutex<State>>;
 pub enum GroupStatus {
     Running,
     Paused,
+}
+
+impl Default for GroupStatus {
+    fn default() -> Self {
+        Self::Running
+    }
+}
+
+#[derive(PartialEq, Clone, Debug, Deserialize, Serialize)]
+pub struct GroupInfo {
+    pub status: GroupStatus,
+    pub parallel_tasks: usize,
+}
+
+impl Default for GroupInfo {
+    fn default() -> Self {
+        Self {
+            status: GroupStatus::default(),
+            parallel_tasks: 1,
+        }
+    }
 }
 
 /// This is the full representation of the current state of the Pueue daemon.
@@ -48,7 +70,7 @@ pub struct State {
     /// All tasks currently managed by the daemon.
     pub tasks: BTreeMap<usize, Task>,
     /// All groups
-    pub groups: BTreeMap<String, GroupStatus>,
+    pub groups: BTreeMap<String, GroupInfo>,
     /// Used to store an configuration path that has been explicitely specified.
     /// Without this, the default config path will be used instead.
     pub config_path: Option<PathBuf>,
@@ -59,17 +81,27 @@ impl State {
     pub fn new(settings: &Settings, config_path: Option<PathBuf>) -> State {
         // Create a default group state.
         let mut groups = BTreeMap::new();
-        for group in settings.daemon.groups.keys() {
-            groups.insert(group.into(), GroupStatus::Running);
+        if let Some(ref settings_groups) = settings.daemon.groups {
+            for (name, parallel_tasks) in settings_groups.iter() {
+                groups.insert(
+                    name.clone(),
+                    GroupInfo {
+                        parallel_tasks: *parallel_tasks,
+                        ..Default::default()
+                    },
+                );
+            }
         }
-
+        if !groups.contains_key(PUEUE_DEFAULT_GROUP) {
+            groups.insert(PUEUE_DEFAULT_GROUP.to_string(), GroupInfo::default());
+        }
         let mut state = State {
             settings: settings.clone(),
             tasks: BTreeMap::new(),
             groups,
             config_path,
         };
-        state.create_group(PUEUE_DEFAULT_GROUP);
+        state.create_group(PUEUE_DEFAULT_GROUP, 1);
         state
     }
 
@@ -94,13 +126,15 @@ impl State {
 
     /// Add a new group to the daemon. \
     /// This also check if the given group already exists.
-    /// Create a state.group entry and a settings.group entry, if it doesn't.
-    pub fn create_group(&mut self, group: &str) {
-        if self.settings.daemon.groups.get(group).is_none() {
-            self.settings.daemon.groups.insert(group.into(), 1);
-        }
+    pub fn create_group(&mut self, group: &str, parallel_tasks: usize) {
         if self.groups.get(group).is_none() {
-            self.groups.insert(group.into(), GroupStatus::Running);
+            self.groups.insert(
+                group.into(),
+                GroupInfo {
+                    status: GroupStatus::Running,
+                    parallel_tasks,
+                },
+            );
         }
     }
 
@@ -114,7 +148,6 @@ impl State {
             ));
         }
 
-        self.settings.daemon.groups.remove(group);
         self.groups.remove(group);
 
         // Reset all tasks with removed group to the default.
@@ -127,11 +160,36 @@ impl State {
         Ok(())
     }
 
+    /// Get an immutable reference to the specified group in this state, if it exists, otherwise
+    /// return a failure message.
+    pub fn get_group<'a, 'b>(&'a self, group: &'b str) -> Result<&'a GroupInfo, Message> {
+        self.groups.get(group).ok_or_else(|| {
+            create_failure_message(format!(
+                "Group {} doesn't exists. Use one of these: {:?}",
+                group,
+                self.groups.keys()
+            ))
+        })
+    }
+
+    /// Get a mutable reference to the specified group in this state, if it exists, otherwise
+    /// return a failure message.
+    pub fn get_group_mut<'a, 'b>(
+        &'a mut self,
+        group: &'b str,
+    ) -> Result<&'a mut GroupInfo, Message> {
+        let failure_msg = create_failure_message(format!(
+            "Group {} doesn't exists. Use one of these: {:?}",
+            group,
+            self.groups.keys()
+        ));
+        self.groups.get_mut(group).ok_or(failure_msg)
+    }
+
     /// Set the group status (running/paused) for all groups including the default queue.
     pub fn set_status_for_all_groups(&mut self, status: GroupStatus) {
-        let keys = self.groups.keys().cloned().collect::<Vec<String>>();
-        for key in keys {
-            self.groups.insert(key, status.clone());
+        for group in self.groups.values_mut() {
+            group.status = status.clone();
         }
     }
 
