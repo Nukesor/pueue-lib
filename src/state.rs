@@ -26,12 +26,12 @@ impl Default for GroupStatus {
 }
 
 #[derive(PartialEq, Clone, Debug, Deserialize, Serialize)]
-pub struct GroupInfo {
+pub struct Group {
     pub status: GroupStatus,
     pub parallel_tasks: usize,
 }
 
-impl Default for GroupInfo {
+impl Default for Group {
     fn default() -> Self {
         Self {
             status: GroupStatus::default(),
@@ -70,7 +70,7 @@ pub struct State {
     /// All tasks currently managed by the daemon.
     pub tasks: BTreeMap<usize, Task>,
     /// All groups
-    pub groups: BTreeMap<String, GroupInfo>,
+    pub groups: BTreeMap<String, Group>,
     /// Used to store an configuration path that has been explicitely specified.
     /// Without this, the default config path will be used instead.
     pub config_path: Option<PathBuf>,
@@ -85,7 +85,7 @@ impl State {
             for (name, parallel_tasks) in settings_groups.iter() {
                 groups.insert(
                     name.clone(),
-                    GroupInfo {
+                    Group {
                         parallel_tasks: *parallel_tasks,
                         ..Default::default()
                     },
@@ -93,7 +93,7 @@ impl State {
             }
         }
         if !groups.contains_key(PUEUE_DEFAULT_GROUP) {
-            groups.insert(PUEUE_DEFAULT_GROUP.to_string(), GroupInfo::default());
+            groups.insert(PUEUE_DEFAULT_GROUP.to_string(), Group::default());
         }
         let mut state = State {
             settings: settings.clone(),
@@ -130,7 +130,7 @@ impl State {
         if self.groups.get(group).is_none() {
             self.groups.insert(
                 group.into(),
-                GroupInfo {
+                Group {
                     status: GroupStatus::Running,
                     parallel_tasks,
                 },
@@ -162,7 +162,7 @@ impl State {
 
     /// Get an immutable reference to the specified group in this state, if it exists, otherwise
     /// return a failure message.
-    pub fn get_group<'a, 'b>(&'a self, group: &'b str) -> Result<&'a GroupInfo, Message> {
+    pub fn get_group<'a, 'b>(&'a self, group: &'b str) -> Result<&'a Group, Message> {
         self.groups.get(group).ok_or_else(|| {
             create_failure_message(format!(
                 "Group {} doesn't exists. Use one of these: {:?}",
@@ -174,10 +174,7 @@ impl State {
 
     /// Get a mutable reference to the specified group in this state, if it exists, otherwise
     /// return a failure message.
-    pub fn get_group_mut<'a, 'b>(
-        &'a mut self,
-        group: &'b str,
-    ) -> Result<&'a mut GroupInfo, Message> {
+    pub fn get_group_mut<'a, 'b>(&'a mut self, group: &'b str) -> Result<&'a mut Group, Message> {
         let failure_msg = create_failure_message(format!(
             "Group {} doesn't exists. Use one of these: {:?}",
             group,
