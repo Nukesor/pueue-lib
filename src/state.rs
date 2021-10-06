@@ -24,6 +24,7 @@ impl Default for GroupStatus {
     }
 }
 
+/// The runtime state of a group.
 #[derive(PartialEq, Clone, Debug, Deserialize, Serialize)]
 pub struct Group {
     pub status: GroupStatus,
