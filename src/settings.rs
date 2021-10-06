@@ -320,7 +320,9 @@ fn parse_config(
     let settings = config.try_into::<Settings>()?;
 
     if settings.daemon.groups.is_some() {
-        error!("The `daemon.groups` setting is deprecated.");
+        error!(r#"The `daemon.groups` setting is deprecated.
+                  Please remove it from your config, as it might lead to inconsistent behavior on the next start.
+                  The groups will still be available, as they're now stored in pueued's internal state."#);
     }
 
     // Try to can deserialize the entire configuration
