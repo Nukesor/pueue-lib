@@ -168,8 +168,12 @@ pub struct EditResponseMessage {
 
 #[derive(PartialEq, Clone, Debug, Deserialize, Serialize)]
 pub enum GroupMessage {
+    /// Create a new group with the given name and number of parallel tasks.
+    /// (name, parallel_tasks)
     Add(String, usize),
+    /// Remove the group with the given name.
     Remove(String),
+    /// List all existing groups.
     List,
 }
 
