@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Deprecated
 
 - Deprecate the `settings.daemon.groups` setting.
+- Extend `GroupMessage::Add` to also contain the amount of parallel tasks for the created group.
 
 ## [0.18.1] - 2021-09-15
 
