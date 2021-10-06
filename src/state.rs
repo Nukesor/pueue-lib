@@ -5,7 +5,6 @@ use std::sync::{Arc, Mutex};
 use serde_derive::{Deserialize, Serialize};
 
 use crate::error::Error;
-use crate::network::message::{create_failure_message, Message};
 use crate::settings::{Settings, PUEUE_DEFAULT_GROUP};
 use crate::task::{Task, TaskStatus};
 
@@ -158,29 +157,6 @@ impl State {
         }
 
         Ok(())
-    }
-
-    /// Get an immutable reference to the specified group in this state, if it exists, otherwise
-    /// return a failure message.
-    pub fn get_group<'a, 'b>(&'a self, group: &'b str) -> Result<&'a Group, Message> {
-        self.groups.get(group).ok_or_else(|| {
-            create_failure_message(format!(
-                "Group {} doesn't exists. Use one of these: {:?}",
-                group,
-                self.groups.keys()
-            ))
-        })
-    }
-
-    /// Get a mutable reference to the specified group in this state, if it exists, otherwise
-    /// return a failure message.
-    pub fn get_group_mut<'a, 'b>(&'a mut self, group: &'b str) -> Result<&'a mut Group, Message> {
-        let failure_msg = create_failure_message(format!(
-            "Group {} doesn't exists. Use one of these: {:?}",
-            group,
-            self.groups.keys()
-        ));
-        self.groups.get_mut(group).ok_or(failure_msg)
     }
 
     /// Set the group status (running/paused) for all groups including the default queue.
