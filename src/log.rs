@@ -131,6 +131,8 @@ pub fn reset_task_log_directory(path: &Path) -> Result<(), Error> {
 }
 
 pub fn read_last_lines_as_byte_deque(file: &mut File, lines: usize) -> Result<VecDeque<u8>, Error> {
+    // The integer types were chosen to avoid overflows when converting between signed
+    // and unsigned integers
     let chunk_size = 4096u32;
     let mut buf = vec![0u8; chunk_size as usize];
     let size = match file.seek(io::SeekFrom::End(0)) {
@@ -149,11 +151,14 @@ pub fn read_last_lines_as_byte_deque(file: &mut File, lines: usize) -> Result<Ve
         if position == 0 {
             break;
         }
+        // Safe to case chunk_size from u32 to u64
         let next_chunk_size = if position > chunk_size as u64 {
             chunk_size
         } else {
+            // Safe to cast position to u32 since it is <= chunk_size which is u32
             position as u32
         };
+        // Safe to case next_chunk_size from u32 to i64
         position = match file.seek(io::SeekFrom::Current(-(next_chunk_size as i64))) {
             Ok(p) => p,
             Err(err) => {
