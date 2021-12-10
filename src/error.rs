@@ -34,6 +34,9 @@ pub enum Error {
     #[error("Couldn't read task log file. {}", .0)]
     LogRead(String),
 
+    #[error("Couldn't seek task log file. {}", .0)]
+    LogSeek(String),
+
     #[error("Some error occurred. {}", .0)]
     Generic(String),
 

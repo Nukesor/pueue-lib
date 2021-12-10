@@ -1,5 +1,6 @@
+use std::collections::VecDeque;
 use std::fs::{read_dir, remove_file, File};
-use std::io::{self, BufReader, Cursor};
+use std::io::{self, Cursor, Read, Seek};
 use std::path::{Path, PathBuf};
 
 use log::error;
@@ -129,22 +130,77 @@ pub fn reset_task_log_directory(path: &Path) -> Result<(), Error> {
     Ok(())
 }
 
-/// Read the last `amount` lines of a file to a string.
-///
-/// TODO: This is super imperformant, but works as long as we don't use the last
-/// 1000 lines. It would be cleaner to seek to the beginning of the requested
-/// position and simply stream the content.
-pub fn read_last_lines(file: &mut File, amount: usize) -> String {
-    // Read the lines from the file.
-    // Return a debug string if it fails.
-    let last_lines: Vec<String> = match rev_lines::RevLines::new(BufReader::new(file)) {
-        Ok(lines) => lines.take(amount).collect(),
-        Err(error) => return format!("(Pueue error) Failed to read last lines of file: {}", error),
+pub fn read_last_lines_as_byte_deque(file: &mut File, lines: usize) -> Result<VecDeque<u8>, Error> {
+    let chunk_size = 4096u32;
+    let mut buf = vec![0u8; chunk_size as usize];
+    let size = match file.seek(io::SeekFrom::End(0)) {
+        Ok(p) => p,
+        Err(err) => {
+            return Err(Error::LogSeek(format!(
+                "Error while seeking log file : {}",
+                err
+            )));
+        }
     };
+    let mut position = size;
+    let mut text = std::collections::VecDeque::new();
+    let mut lines_seen = 0usize;
+    'outer: loop {
+        if position == 0 {
+            break;
+        }
+        let next_chunk_size = if position > chunk_size as u64 {
+            chunk_size
+        } else {
+            position as u32
+        };
+        position = match file.seek(io::SeekFrom::Current(-(next_chunk_size as i64))) {
+            Ok(p) => p,
+            Err(err) => {
+                return Err(Error::LogSeek(format!(
+                    "Error while seeking log file : {}",
+                    err
+                )));
+            }
+        };
+        let slice = &mut buf[..next_chunk_size as usize];
+        if let Err(err) = file.read_exact(slice) {
+            return Err(Error::LogRead(format!(
+                "Error while reading log file : {}",
+                err
+            )));
+        }
+        for b in slice.into_iter().rev() {
+            if *b == b'\n' {
+                lines_seen += 1;
+                if lines_seen == lines + 1 {
+                    break 'outer;
+                }
+            }
+            text.push_front(*b)
+        }
+    }
+    if let Err(err) = file.seek(io::SeekFrom::End(0)) {
+        return Err(Error::LogSeek(format!(
+            "Error while seeking log file : {}",
+            err
+        )));
+    };
+    Ok(text)
+}
 
-    last_lines
-        .into_iter()
-        .rev()
-        .collect::<Vec<String>>()
-        .join("\n")
+/// Read the last `amount` lines of a file to a string.
+pub fn read_last_lines(file: &mut File, amount: usize) -> String {
+    match read_last_lines_as_byte_deque(file, amount) {
+        Ok(deque) => {
+            let lines: Vec<u8> = deque.into();
+            match String::from_utf8(lines) {
+                Ok(lines) => lines,
+                Err(error) => {
+                    return format!("(Pueue error) Failed to read last lines of file: {}", error)
+                }
+            }
+        }
+        Err(error) => return format!("(Pueue error) Failed to read last lines of file: {}", error),
+    }
 }
