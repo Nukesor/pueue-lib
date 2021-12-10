@@ -170,7 +170,7 @@ pub fn read_last_lines_as_byte_deque(file: &mut File, lines: usize) -> Result<Ve
                 err
             )));
         }
-        for b in slice.into_iter().rev() {
+        for b in slice.iter().rev() {
             if *b == b'\n' {
                 lines_seen += 1;
                 if lines_seen == lines + 1 {
