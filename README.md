@@ -6,9 +6,16 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Downloads](https://img.shields.io/github/downloads/nukesor/pueue-lib/total.svg)](https://github.com/nukesor/pueue-lib/releases)
 
+**Attention!!**
+
+The repository has been merged into the main project [Pueue](https://github.com/nukesor/pueue/).
+
+It will stay for historical reasons, but there's no longer any active development.
+For contributions, check the `development` branch on the main repository.
+
+**Attention!!**
 
 This is the shared library used by the [Pueue](https://github.com/nukesor/pueue/) client and daemon.
-
 It can also be used by third-party software to, for instance, to communicate with the Pueue daemon.
 
 ## Contributing
